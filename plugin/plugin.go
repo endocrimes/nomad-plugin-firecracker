@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -67,7 +68,8 @@ var (
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"kernel_path": hclspec.NewAttr("kernel_path", "string", true),
 		"image_path":  hclspec.NewAttr("image_path", "string", true),
-		"boot_args":   hclspec.NewAttr("boot_args", "string", false),
+
+		"kernel_boot_args": hclspec.NewAttr("kernel_boot_args", "string", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -236,12 +238,12 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func newFirecracker(ctx context.Context, binPath, socketPath, kernelImage, kernelArgs, fsPath string) (*firecracker.Machine, error) {
+func newFirecracker(ctx context.Context, binPath, socketPath, kernelImage, kernelArgs, fsPath string, cpuCount int64, memSize int64) (*firecracker.Machine, error) {
 	rootDrive := models.Drive{
 		DriveID:      firecracker.String("1"),
 		PathOnHost:   firecracker.String(fsPath),
 		IsRootDevice: firecracker.Bool(true),
-		IsReadOnly:   firecracker.Bool(false),
+		IsReadOnly:   firecracker.Bool(true),
 	}
 
 	fcCfg := firecracker.Config{
@@ -250,10 +252,10 @@ func newFirecracker(ctx context.Context, binPath, socketPath, kernelImage, kerne
 		KernelArgs:      kernelArgs,
 		Drives:          []models.Drive{rootDrive},
 		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   1,
+			VcpuCount:   cpuCount,
 			CPUTemplate: models.CPUTemplate("C3"),
 			HtEnabled:   false,
-			MemSizeMib:  512,
+			MemSizeMib:  memSize,
 		},
 	}
 
@@ -299,8 +301,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 		return nil, nil, err
 	}
 
+	cpuCount := int64(math.Max(1, float64(cfg.Resources.NomadResources.Cpu.CpuShares)/1024.0))
+	memSize := cfg.Resources.NomadResources.Memory.MemoryMB
+
 	controlSocketPath := fmt.Sprintf("/tmp/%s.socket", controlUUID)
-	m, err := newFirecracker(ctx, d.config.FirecrackerPath, controlSocketPath, config.KernelPath, config.KernelBootArgs, config.ImagePath)
+	m, err := newFirecracker(ctx, d.config.FirecrackerPath, controlSocketPath, config.KernelPath, config.KernelBootArgs, config.ImagePath, cpuCount, memSize)
 	if err != nil {
 		return nil, nil, err
 	}
