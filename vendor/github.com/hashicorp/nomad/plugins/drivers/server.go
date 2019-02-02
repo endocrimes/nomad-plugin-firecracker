@@ -5,9 +5,7 @@ import (
 	"io"
 
 	"github.com/golang/protobuf/ptypes"
-	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	dstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -20,7 +18,6 @@ import (
 type driverPluginServer struct {
 	broker *plugin.GRPCBroker
 	impl   DriverPlugin
-	logger hclog.Logger
 }
 
 func (b *driverPluginServer) TaskConfigSchema(ctx context.Context, req *proto.TaskConfigSchemaRequest) (*proto.TaskConfigSchemaResponse, error) {
@@ -48,11 +45,11 @@ func (b *driverPluginServer) Capabilities(ctx context.Context, req *proto.Capabi
 	}
 
 	switch caps.FSIsolation {
-	case cstructs.FSIsolationNone:
+	case FSIsolationNone:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
-	case cstructs.FSIsolationChroot:
+	case FSIsolationChroot:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_CHROOT
-	case cstructs.FSIsolationImage:
+	case FSIsolationImage:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_IMAGE
 	default:
 		resp.Capabilities.FsIsolation = proto.DriverCapabilities_NONE
@@ -71,7 +68,11 @@ func (b *driverPluginServer) Fingerprint(req *proto.FingerprintRequest, srv prot
 		select {
 		case <-ctx.Done():
 			return nil
-		case f := <-ch:
+		case f, ok := <-ch:
+
+			if !ok {
+				return nil
+			}
 			resp := &proto.FingerprintResponse{
 				Attributes:        dstructs.ConvertStructAttributeMap(f.Attributes),
 				Health:            healthStateToProto(f.Health),
@@ -220,22 +221,41 @@ func (b *driverPluginServer) InspectTask(ctx context.Context, req *proto.Inspect
 	return resp, nil
 }
 
-func (b *driverPluginServer) TaskStats(ctx context.Context, req *proto.TaskStatsRequest) (*proto.TaskStatsResponse, error) {
-	stats, err := b.impl.TaskStats(req.TaskId)
+func (b *driverPluginServer) TaskStats(req *proto.TaskStatsRequest, srv proto.Driver_TaskStatsServer) error {
+	interval, err := ptypes.Duration(req.CollectionInterval)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to parse collection interval: %v", err)
 	}
 
-	pb, err := TaskStatsToProto(stats)
+	ch, err := b.impl.TaskStats(srv.Context(), req.TaskId, interval)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode task stats: %v", err)
+		if rec, ok := err.(structs.Recoverable); ok {
+			st := status.New(codes.FailedPrecondition, rec.Error())
+			st, err := st.WithDetails(&sproto.RecoverableError{Recoverable: rec.IsRecoverable()})
+			if err != nil {
+				// If this error, it will always error
+				panic(err)
+			}
+			return st.Err()
+		}
+		return err
 	}
 
-	resp := &proto.TaskStatsResponse{
-		Stats: pb,
+	for stats := range ch {
+		pb, err := TaskStatsToProto(stats)
+		if err != nil {
+			return fmt.Errorf("failed to encode task stats: %v", err)
+		}
+
+		if err = srv.Send(&proto.TaskStatsResponse{Stats: pb}); err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
 	}
 
-	return resp, nil
+	return nil
 }
 
 func (b *driverPluginServer) ExecTask(ctx context.Context, req *proto.ExecTaskRequest) (*proto.ExecTaskResponse, error) {

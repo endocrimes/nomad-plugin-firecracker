@@ -11,6 +11,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+var _ plugin.GRPCPlugin = &PluginDriver{}
+
 // PluginDriver wraps a DriverPlugin and implements go-plugins GRPCPlugin
 // interface to expose the the interface over gRPC
 type PluginDriver struct {
@@ -19,10 +21,10 @@ type PluginDriver struct {
 	logger hclog.Logger
 }
 
-func NewDriverPlugin(d DriverPlugin, logger hclog.Logger) plugin.GRPCPlugin {
+func NewDriverPlugin(d DriverPlugin, logger hclog.Logger) *PluginDriver {
 	return &PluginDriver{
 		impl:   d,
-		logger: logger.Named("driver_plugin"),
+		logger: logger,
 	}
 }
 
@@ -30,7 +32,6 @@ func (p *PluginDriver) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) err
 	proto.RegisterDriverServer(s, &driverPluginServer{
 		impl:   p.impl,
 		broker: broker,
-		logger: p.logger,
 	})
 	return nil
 }
@@ -42,8 +43,8 @@ func (p *PluginDriver) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker
 			Client:  baseproto.NewBasePluginClient(c),
 		},
 		client:  proto.NewDriverClient(c),
-		logger:  p.logger,
 		doneCtx: ctx,
+		logger:  p.logger,
 	}, nil
 }
 

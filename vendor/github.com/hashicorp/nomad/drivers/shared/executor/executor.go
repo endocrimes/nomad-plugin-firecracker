@@ -20,9 +20,9 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
 
@@ -67,8 +67,9 @@ type Executor interface {
 	// Version returns the executor API version
 	Version() (*ExecutorVersion, error)
 
-	// Stats fetchs process usage stats for the executor and each pid if available
-	Stats() (*cstructs.TaskResourceUsage, error)
+	// Returns a channel of stats. Stats are collected and
+	// pushed to the channel on the given interval
+	Stats(context.Context, time.Duration) (<-chan *cstructs.TaskResourceUsage, error)
 
 	// Signal sends the given signal to the user process
 	Signal(os.Signal) error
@@ -249,7 +250,7 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 // Launch launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
-	e.logger.Info("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
+	e.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
 	e.commandCfg = command
 
@@ -332,7 +333,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 	cmd.Env = env
 
 	// Capture output
-	buf, _ := circbuf.NewBuffer(int64(cstructs.CheckBufSize))
+	buf, _ := circbuf.NewBuffer(int64(drivers.CheckBufSize))
 	cmd.Stdout = buf
 	cmd.Stderr = buf
 
@@ -373,14 +374,13 @@ func (e *UniversalExecutor) UpdateResources(resources *drivers.Resources) error 
 
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
+	defer e.commandCfg.Close()
 	pid := e.childCmd.Process.Pid
 	err := e.childCmd.Wait()
 	if err == nil {
 		e.exitState = &ProcessState{Pid: pid, ExitCode: 0, Time: time.Now()}
 		return
 	}
-
-	e.commandCfg.Close()
 
 	exitCode := 1
 	var signal int
@@ -420,7 +420,7 @@ var (
 // Exit cleans up the alloc directory, destroys resource container and kills the
 // user process
 func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
-	e.logger.Info("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
+	e.logger.Debug("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
 	var merr multierror.Error
 
 	// If the executor did not launch a process, return.
@@ -507,12 +507,36 @@ func (e *UniversalExecutor) Signal(s os.Signal) error {
 	return nil
 }
 
-func (e *UniversalExecutor) Stats() (*cstructs.TaskResourceUsage, error) {
-	pidStats, err := e.pidCollector.pidStats()
-	if err != nil {
-		return nil, err
+func (e *UniversalExecutor) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	ch := make(chan *cstructs.TaskResourceUsage)
+	go e.handleStats(ch, ctx, interval)
+	return ch, nil
+}
+
+func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx context.Context, interval time.Duration) {
+	defer close(ch)
+	timer := time.NewTimer(0)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-timer.C:
+			timer.Reset(interval)
+		}
+
+		pidStats, err := e.pidCollector.pidStats()
+		if err != nil {
+			e.logger.Warn("error collecting stats", "error", err)
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- aggregatedResourceUsage(e.systemCpuStats, pidStats):
+		}
 	}
-	return aggregatedResourceUsage(e.systemCpuStats, pidStats), nil
 }
 
 // lookupBin looks for path to the binary to run by looking for the binary in

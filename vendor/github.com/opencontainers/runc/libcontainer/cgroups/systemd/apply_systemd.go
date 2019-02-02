@@ -319,6 +319,12 @@ func (m *Manager) Apply(pid int) error {
 			newProp("BlockIOWeight", uint64(c.Resources.BlkioWeight)))
 	}
 
+	if c.Resources.PidsLimit > 0 {
+		properties = append(properties,
+			newProp("TasksAccounting", true),
+			newProp("TasksMax", uint64(c.Resources.PidsLimit)))
+	}
+
 	// We have to set kernel memory here, as we can't change it once
 	// processes have been attached to the cgroup.
 	if c.Resources.KernelMemory != 0 {
@@ -464,7 +470,7 @@ func ExpandSlice(slice string) (string, error) {
 }
 
 func getSubsystemPath(c *configs.Cgroup, subsystem string) (string, error) {
-	mountpoint, err := cgroups.FindCgroupMountpoint(subsystem)
+	mountpoint, err := cgroups.FindCgroupMountpoint(c.Path, subsystem)
 	if err != nil {
 		return "", err
 	}

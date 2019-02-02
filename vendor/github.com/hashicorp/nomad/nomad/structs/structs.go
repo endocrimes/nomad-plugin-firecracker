@@ -28,7 +28,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-version"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
@@ -3419,6 +3419,7 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		ID:                j.ID,
 		ParentID:          j.ParentID,
 		Name:              j.Name,
+		Datacenters:       j.Datacenters,
 		Type:              j.Type,
 		Priority:          j.Priority,
 		Periodic:          j.IsPeriodic(),
@@ -3561,6 +3562,7 @@ type JobListStub struct {
 	ID                string
 	ParentID          string
 	Name              string
+	Datacenters       []string
 	Type              string
 	Priority          int
 	Periodic          bool
@@ -4017,6 +4019,9 @@ func (d *DispatchPayloadConfig) Validate() error {
 }
 
 var (
+	// These default restart policies needs to be in sync with
+	// Canonicalize in api/tasks.go
+
 	DefaultServiceJobRestartPolicy = RestartPolicy{
 		Delay:    15 * time.Second,
 		Attempts: 2,
@@ -4032,6 +4037,9 @@ var (
 )
 
 var (
+	// These default reschedule policies needs to be in sync with
+	// NewDefaultReschedulePolicy in api/tasks.go
+
 	DefaultServiceJobReschedulePolicy = ReschedulePolicy{
 		Delay:         30 * time.Second,
 		DelayFunction: "exponential",
@@ -5743,17 +5751,7 @@ func (ts *TaskState) Copy() *TaskState {
 // have meaning on a non-batch allocation because a service and system
 // allocation should not finish.
 func (ts *TaskState) Successful() bool {
-	l := len(ts.Events)
-	if ts.State != TaskStateDead || l == 0 {
-		return false
-	}
-
-	e := ts.Events[l-1]
-	if e.Type != TaskTerminated {
-		return false
-	}
-
-	return e.ExitCode == 0
+	return ts.State == TaskStateDead && !ts.Failed
 }
 
 const (
@@ -6457,11 +6455,11 @@ func (c *Constraint) Validate() error {
 
 // Affinity is used to score placement options based on a weight
 type Affinity struct {
-	LTarget string  // Left-hand target
-	RTarget string  // Right-hand target
-	Operand string  // Affinity operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
-	Weight  float64 // Weight applied to nodes that match the affinity. Can be negative
-	str     string  // Memoized string
+	LTarget string // Left-hand target
+	RTarget string // Right-hand target
+	Operand string // Affinity operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
+	Weight  int8   // Weight applied to nodes that match the affinity. Can be negative
+	str     string // Memoized string
 }
 
 // Equal checks if two affinities are equal
@@ -6541,7 +6539,7 @@ type Spread struct {
 
 	// Weight is the relative weight of this spread, useful when there are multiple
 	// spread and affinities
-	Weight int
+	Weight int8
 
 	// SpreadTarget is used to describe desired percentages for each attribute value
 	SpreadTarget []*SpreadTarget
@@ -6591,7 +6589,7 @@ func (s *Spread) Validate() error {
 		if target.Percent < 0 || target.Percent > 100 {
 			mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Spread target percentage for value %q must be between 0 and 100", target.Value)))
 		}
-		sumPercent += target.Percent
+		sumPercent += uint32(target.Percent)
 	}
 	if sumPercent > 100 {
 		mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Sum of spread target percentages must not be greater than 100%%; got %d%%", sumPercent)))
@@ -6605,7 +6603,7 @@ type SpreadTarget struct {
 	Value string
 
 	// Percent is the desired percentage of allocs
-	Percent uint32
+	Percent uint8
 
 	// Memoized string representation
 	str string
@@ -7292,13 +7290,17 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 func (a *Allocation) TerminalStatus() bool {
 	// First check the desired state and if that isn't terminal, check client
 	// state.
+	return a.ServerTerminalStatus() || a.ClientTerminalStatus()
+}
+
+// ServerTerminalStatus returns true if the desired state of the allocation is terminal
+func (a *Allocation) ServerTerminalStatus() bool {
 	switch a.DesiredStatus {
 	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
 		return true
 	default:
+		return false
 	}
-
-	return a.ClientTerminalStatus()
 }
 
 // ClientTerminalStatus returns if the client status is terminal and will no longer transition
@@ -8547,6 +8549,10 @@ func (r *RecoverableError) Error() string {
 
 func (r *RecoverableError) IsRecoverable() bool {
 	return r.Recoverable
+}
+
+func (r *RecoverableError) IsUnrecoverable() bool {
+	return !r.Recoverable
 }
 
 // Recoverable is an interface for errors to implement to indicate whether or

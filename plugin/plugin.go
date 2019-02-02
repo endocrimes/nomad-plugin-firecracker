@@ -11,11 +11,9 @@ import (
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/google/uuid"
 	hclog "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/hashicorp/nomad/plugins/shared/loader"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -29,23 +27,13 @@ const (
 	// executableMask is the mask needed to check whether or not a file's
 	// permissions are executable.
 	executableMask = 0111
+
+	// taskHandleVersion is the version of task handle which this driver sets
+	// and understands how to decode driver state
+	taskHandleVersion = 1
 )
 
 var (
-	// PluginID is the exec plugin metadata registered in the plugin
-	// catalog.
-	PluginID = loader.PluginID{
-		Name:       pluginName,
-		PluginType: base.PluginTypeDriver,
-	}
-
-	// PluginConfig is the exec driver factory function registered in the
-	// plugin catalog.
-	PluginConfig = &loader.InternalPluginConfig{
-		Config:  map[string]interface{}{},
-		Factory: func(l hclog.Logger) interface{} { return NewDriver(l) },
-	}
-
 	// pluginInfo is the response returned for the PluginInfo RPC
 	pluginInfo = &base.PluginInfoResponse{
 		Type:              base.PluginTypeDriver,
@@ -77,7 +65,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: false,
 		Exec:        false,
-		FSIsolation: cstructs.FSIsolationImage,
+		FSIsolation: drivers.FSIsolationImage,
 	}
 )
 
@@ -238,7 +226,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func newFirecracker(ctx context.Context, binPath, socketPath, kernelImage, kernelArgs, fsPath string, cpuCount int64, memSize int64) (*firecracker.Machine, error) {
+func newMachine(ctx context.Context, binPath, socketPath, kernelImage, kernelArgs, fsPath string, cpuCount int64, memSize int64) (*firecracker.Machine, error) {
 	rootDrive := models.Drive{
 		DriveID:      firecracker.String("1"),
 		PathOnHost:   firecracker.String(fsPath),
@@ -246,11 +234,18 @@ func newFirecracker(ctx context.Context, binPath, socketPath, kernelImage, kerne
 		IsReadOnly:   firecracker.Bool(true),
 	}
 
+	ephemeralDrive := models.Drive{
+		DriveID:      firecracker.String("2"),
+		PathOnHost:   firecracker.String("/tmp/fstest"),
+		IsRootDevice: firecracker.Bool(false),
+		IsReadOnly:   firecracker.Bool(false),
+	}
+
 	fcCfg := firecracker.Config{
 		SocketPath:      socketPath,
 		KernelImagePath: kernelImage,
 		KernelArgs:      kernelArgs,
-		Drives:          []models.Drive{rootDrive},
+		Drives:          []models.Drive{rootDrive, ephemeralDrive},
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:   cpuCount,
 			CPUTemplate: models.CPUTemplate("C3"),
@@ -279,13 +274,13 @@ func newFirecracker(ctx context.Context, binPath, socketPath, kernelImage, kerne
 	return m, nil
 }
 
-func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstructs.DriverNetwork, error) {
+func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
 	}
 
 	ctx := context.Background()
-	handle := drivers.NewTaskHandle(pluginName)
+	handle := drivers.NewTaskHandle(taskHandleVersion)
 
 	var config TaskConfig
 	if err := cfg.DecodeDriverConfig(&config); err != nil {
@@ -305,7 +300,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	memSize := cfg.Resources.NomadResources.Memory.MemoryMB
 
 	controlSocketPath := fmt.Sprintf("/tmp/%s.socket", controlUUID)
-	m, err := newFirecracker(ctx, d.config.FirecrackerPath, controlSocketPath, config.KernelPath, config.KernelBootArgs, config.ImagePath, cpuCount, memSize)
+	m, err := newMachine(ctx, d.config.FirecrackerPath, controlSocketPath, config.KernelPath, config.KernelBootArgs, config.ImagePath, cpuCount, memSize)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -320,7 +315,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *cstru
 	}
 
 	d.tasks.Set(cfg.ID, h)
+
 	go h.run()
+
 	return handle, nil, nil
 }
 
@@ -364,19 +361,13 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return h.TaskStatus(), nil
 }
 
-func (d *Driver) TaskStats(taskID string) (*cstructs.TaskResourceUsage, error) {
-	_, ok := d.tasks.Get(taskID)
+func (d *Driver) TaskStats(ctx context.Context, taskID string, interval time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
+	h, ok := d.tasks.Get(taskID)
 	if !ok {
 		return nil, fmt.Errorf("task with ID %q not found", taskID)
 	}
 
-	return &cstructs.TaskResourceUsage{
-		ResourceUsage: &cstructs.ResourceUsage{
-			MemoryStats: &cstructs.MemoryStats{},
-			CpuStats:    &cstructs.CpuStats{},
-		},
-		Pids: make(map[string]*cstructs.ResourceUsage),
-	}, nil
+	return h.exec.Stats(ctx, interval)
 }
 
 func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {

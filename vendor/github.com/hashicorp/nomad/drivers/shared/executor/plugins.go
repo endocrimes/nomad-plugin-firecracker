@@ -1,11 +1,10 @@
 package executor
 
 import (
-	"io"
 	"net"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 )
 
 // ExecutorConfig is the config that Nomad passes to the executor
@@ -22,18 +21,18 @@ type ExecutorConfig struct {
 	FSIsolation bool
 }
 
-func GetPluginMap(w io.Writer, logLevel hclog.Level, fsIsolation bool) map[string]plugin.Plugin {
-	e := new(ExecutorPlugin)
-
-	e.logger = hclog.New(&hclog.LoggerOptions{
-		Output: w,
-		Level:  logLevel,
-	})
-
-	e.fsIsolation = fsIsolation
-
+func GetPluginMap(logger hclog.Logger, fsIsolation bool) map[string]plugin.Plugin {
 	return map[string]plugin.Plugin{
-		"executor": e,
+		"executor": &ExecutorPlugin{
+			logger:      logger,
+			fsIsolation: fsIsolation,
+		},
+	}
+}
+
+func GetPre09PluginMap(logger hclog.Logger, fsIsolation bool) map[string]plugin.Plugin {
+	return map[string]plugin.Plugin{
+		"executor": newPre09ExecutorPlugin(logger),
 	}
 }
 

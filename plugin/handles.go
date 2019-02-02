@@ -7,12 +7,14 @@ import (
 
 	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type taskHandle struct {
 	machine *firecracker.Machine
 	logger  hclog.Logger
+	exec    executor.Executor
 
 	// stateLock syncs access to all fields below
 	stateLock sync.RWMutex
