@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -66,8 +65,7 @@ type initConfig struct {
 	CreateConsole    bool                  `json:"create_console"`
 	ConsoleWidth     uint16                `json:"console_width"`
 	ConsoleHeight    uint16                `json:"console_height"`
-	RootlessEUID     bool                  `json:"rootless_euid,omitempty"`
-	RootlessCgroups  bool                  `json:"rootless_cgroups,omitempty"`
+	Rootless         bool                  `json:"rootless"`
 }
 
 type initer interface {
@@ -220,7 +218,11 @@ func syncParentReady(pipe io.ReadWriter) error {
 	}
 
 	// Wait for parent to give the all-clear.
-	return readSync(pipe, procRun)
+	if err := readSync(pipe, procRun); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // syncParentHooks sends to the given pipe a JSON payload which indicates that
@@ -233,7 +235,11 @@ func syncParentHooks(pipe io.ReadWriter) error {
 	}
 
 	// Wait for parent to give the all-clear.
-	return readSync(pipe, procResume)
+	if err := readSync(pipe, procResume); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // setupUser changes the groups, gid, and uid for the user inside the container
@@ -277,7 +283,7 @@ func setupUser(config *initConfig) error {
 		return fmt.Errorf("cannot set gid to unmapped user in user namespace")
 	}
 
-	if config.RootlessEUID {
+	if config.Rootless {
 		// We cannot set any additional groups in a rootless container and thus
 		// we bail if the user asked us to do so. TODO: We currently can't do
 		// this check earlier, but if libcontainer.Process.User was typesafe
@@ -293,18 +299,11 @@ func setupUser(config *initConfig) error {
 		return err
 	}
 
-	setgroups, err := ioutil.ReadFile("/proc/self/setgroups")
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
 	// This isn't allowed in an unprivileged user namespace since Linux 3.19.
 	// There's nothing we can do about /etc/group entries, so we silently
 	// ignore setting groups here (since the user didn't explicitly ask us to
 	// set the group).
-	allowSupGroups := !config.RootlessEUID && strings.TrimSpace(string(setgroups)) != "deny"
-
-	if allowSupGroups {
+	if !config.Rootless {
 		suppGroups := append(execUser.Sgids, addGroups...)
 		if err := unix.Setgroups(suppGroups); err != nil {
 			return err
