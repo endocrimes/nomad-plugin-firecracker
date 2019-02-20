@@ -41,6 +41,11 @@
   name = "github.com/hashicorp/nomad"
   version = "0.9.0-beta2"
 
+[[override]]
+  name = "github.com/opencontainers/runc"
+  source = "github.com/hashicorp/runc"
+  branch = "nomad"
+
 [prune]
   go-tests = true
   unused-packages = true

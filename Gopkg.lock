@@ -555,7 +555,8 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:e34526778ae2e09069b2bf784d994b9ac9de28d5baca67d51b3dbc30d5b29a85"
+  branch = "nomad"
+  digest = "1:8a292a5296d58ebe3a556c1591cafa334a695d4885bf96b9d91f946f10071d42"
   name = "github.com/opencontainers/runc"
   packages = [
     "libcontainer",
@@ -577,8 +578,8 @@
     "libcontainer/utils",
   ]
   pruneopts = "UT"
-  revision = "ccb5efd37fb7c86364786e9137e22948751de7ed"
-  version = "v1.0.0-rc6"
+  revision = "1c451893cc218c482a7338a98f11306d90f0ee4b"
+  source = "github.com/hashicorp/runc"
 
 [[projects]]
   digest = "1:57234a321bf1f8f98a8a9a5122a2404cc60d0800516f4ab7a7b2375e4b2d19ea"

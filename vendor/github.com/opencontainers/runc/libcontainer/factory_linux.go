@@ -43,7 +43,10 @@ func InitArgs(args ...string) func(*LinuxFactory) error {
 			}
 		}
 
-		l.InitArgs = args
+		l.InitPath = args[0]
+		if len(args) > 1 {
+			l.InitArgs = args[1:]
+		}
 		return nil
 	}
 }
@@ -77,7 +80,7 @@ func Cgroupfs(l *LinuxFactory) error {
 // containers that use the native cgroups filesystem implementation to create
 // and manage cgroups. The difference between RootlessCgroupfs and Cgroupfs is
 // that RootlessCgroupfs can transparently handle permission errors that occur
-// during rootless container (including euid=0 in userns) setup (while still allowing cgroup usage if
+// during rootless container setup (while still allowing cgroup usage if
 // they've been set up properly).
 func RootlessCgroupfs(l *LinuxFactory) error {
 	l.NewCgroupsManager = func(config *configs.Cgroup, paths map[string]string) cgroups.Manager {
@@ -92,7 +95,7 @@ func RootlessCgroupfs(l *LinuxFactory) error {
 
 // IntelRdtfs is an options func to configure a LinuxFactory to return
 // containers that use the Intel RDT "resource control" filesystem to
-// create and manage Intel RDT resources (e.g., L3 cache, memory bandwidth).
+// create and manage Intel Xeon platform shared resources (e.g., L3 cache).
 func IntelRdtFs(l *LinuxFactory) error {
 	l.NewIntelRdtManager = func(config *configs.Config, id string, path string) intelrdt.Manager {
 		return &intelrdt.IntelRdtManager{
@@ -138,7 +141,7 @@ func New(root string, options ...func(*LinuxFactory) error) (Factory, error) {
 	l := &LinuxFactory{
 		Root:      root,
 		InitPath:  "/proc/self/exe",
-		InitArgs:  []string{os.Args[0], "init"},
+		InitArgs:  []string{"init"},
 		Validator: validate.New(),
 		CriuPath:  "criu",
 	}
@@ -222,7 +225,7 @@ func (l *LinuxFactory) Create(id string, config *configs.Config) (Container, err
 		newgidmapPath: l.NewgidmapPath,
 		cgroupManager: l.NewCgroupsManager(config.Cgroups, nil),
 	}
-	if intelrdt.IsCatEnabled() || intelrdt.IsMbaEnabled() {
+	if intelrdt.IsEnabled() {
 		c.intelRdtManager = l.NewIntelRdtManager(config, id, "")
 	}
 	c.state = &stoppedState{c: c}
@@ -268,7 +271,7 @@ func (l *LinuxFactory) Load(id string) (Container, error) {
 	if err := c.refreshState(); err != nil {
 		return nil, err
 	}
-	if intelrdt.IsCatEnabled() || intelrdt.IsMbaEnabled() {
+	if intelrdt.IsEnabled() {
 		c.intelRdtManager = l.NewIntelRdtManager(&state.Config, id, state.IntelRdtPath)
 	}
 	return c, nil
