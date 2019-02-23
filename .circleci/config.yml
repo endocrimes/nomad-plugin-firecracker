@@ -1,0 +1,31 @@
+version: 2.1
+
+workflows:
+  # We don't test on CircleCI because nested virt isn't enabled on the machine
+  # executor.
+  quick-validate:
+    jobs:
+      - lint
+      - build
+
+executors:
+  go-docker:
+    docker:
+      - image: circleci/golang:1.11
+    working_directory: /go/src/github.com/dantoml/nomad-plugin-firecracker
+
+jobs:
+  lint:
+    executor: go-docker
+    steps:
+      - checkout
+      - run: go lint
+
+  build:
+    executor: go-docker
+    steps:
+      - checkout
+      - run: mkdir bin
+      - run: go build -o bin/nomad-plugin-firecracker
+      - store_artifacts:
+          path: ./bin
