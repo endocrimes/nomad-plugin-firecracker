@@ -395,7 +395,8 @@
   revision = "6e968a3fcdcbab092f5307fd0d85479d5af1e4dc"
 
 [[projects]]
-  digest = "1:c3506421d8f689be6e7cc1bbe86f133024c4522ca71e91dd0995d909dfb74a37"
+  branch = "master"
+  digest = "1:453f5c44c6449176839aa728bbd5bf5295ee5d81eac1396a1a250260cd295443"
   name = "github.com/hashicorp/nomad"
   packages = [
     "acl",
@@ -427,8 +428,7 @@
     "plugins/shared/structs/proto",
   ]
   pruneopts = "UT"
-  revision = "a0f4b11c1cfc4ff8564a801eb9d0a811a16db208"
-  version = "v0.9.0-beta2"
+  revision = "eecae582c20d0fb206a25910c5bffe9004ad6de0"
 
 [[projects]]
   branch = "master"
@@ -555,8 +555,7 @@
   version = "v1.0.0"
 
 [[projects]]
-  branch = "nomad"
-  digest = "1:8a292a5296d58ebe3a556c1591cafa334a695d4885bf96b9d91f946f10071d42"
+  digest = "1:391796f0bbe76cd641dd01222eec8d1d90d76321597602e5a5f07d80be5c6976"
   name = "github.com/opencontainers/runc"
   packages = [
     "libcontainer",
@@ -578,7 +577,7 @@
     "libcontainer/utils",
   ]
   pruneopts = "UT"
-  revision = "1c451893cc218c482a7338a98f11306d90f0ee4b"
+  revision = "369b920277d27630441336775cd728bc0f19e496"
   source = "github.com/hashicorp/runc"
 
 [[projects]]

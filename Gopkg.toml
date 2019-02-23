@@ -39,12 +39,12 @@
 
 [[constraint]]
   name = "github.com/hashicorp/nomad"
-  version = "0.9.0-beta2"
+  branch = "master"
 
 [[override]]
   name = "github.com/opencontainers/runc"
   source = "github.com/hashicorp/runc"
-  branch = "nomad"
+  revision = "369b920277d27630441336775cd728bc0f19e496"
 
 [prune]
   go-tests = true
