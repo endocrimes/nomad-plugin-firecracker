@@ -271,7 +271,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	execImpl, pluginClient, err := executor.CreateExecutor(
-		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
+		d.logger.With("task_name", cfg.Name, "alloc_id", cfg.AllocID),
 		d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, err
@@ -279,12 +279,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	execCmd := &executor.ExecCommand{
 		Cmd:        cmd.Path,
-		Args:       cmd.Args,
+		Args:       cmd.Args[1:],
 		Env:        append(cfg.EnvList(), cmd.Env...),
 		User:       cfg.User,
 		TaskDir:    cfg.TaskDir().Dir,
 		StdoutPath: cfg.StdoutPath,
 		StderrPath: cfg.StderrPath,
+		Mounts:     []*drivers.MountConfig{},
 	}
 
 	ps, err := execImpl.Launch(execCmd)
@@ -314,7 +315,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		MemSizeMib: memSize,
 	}
 
-	client := firecracker.NewClient(controlSocketPath, logrus.WithField("alloc_id", handle.Config.AllocID), false)
+	// TODO: FIXME: Timeout after some reasonable amount of time and log non 404s.
+	for {
+		if _, err := os.Stat(controlSocketPath); os.IsNotExist(err) {
+			continue
+		}
+
+		break
+	}
+
+	client := firecracker.NewClient(controlSocketPath, logrus.WithField("alloc_id", cfg.AllocID), false)
 
 	if resp, err := client.PutGuestBootSource(ctx, &bsrc); err != nil {
 		d.logger.Error("Failed to configure boot source", "resp_error", resp.Error(), "err", err)
@@ -333,6 +343,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	h := &taskHandle{
 		taskConfig: cfg,
+		client:     client,
 		pid:        ps.Pid,
 		procState:  drivers.TaskStateRunning,
 		exec:       execImpl,
