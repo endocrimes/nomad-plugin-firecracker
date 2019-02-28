@@ -118,7 +118,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2b485ed23cea2f62fedeb32488dc72359e61130ffef38107a18154f9d1cfb057"
+  digest = "1:73395181b22133c5766a193ed645a7efb1f7136e3ae88d29fed219e986b626de"
   name = "github.com/firecracker-microvm/firecracker-go-sdk"
   packages = [
     ".",
@@ -127,7 +127,7 @@
     "client/operations",
   ]
   pruneopts = "UT"
-  revision = "d54e468f289385d4201e74d3ae6081a8db3cbbe6"
+  revision = "e5695db10609a221fbd186ffa4429e74d4ffd00c"
 
 [[projects]]
   branch = "master"
@@ -264,14 +264,6 @@
   ]
   pruneopts = "UT"
   revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
-  version = "v1.1.0"
-
-[[projects]]
-  digest = "1:236d7e1bdb50d8f68559af37dbcf9d142d56b431c9b2176d41e2a009b664cda8"
-  name = "github.com/google/uuid"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8"
   version = "v1.1.0"
 
 [[projects]]
@@ -647,9 +639,12 @@
   revision = "bb4de0191aa41b5507caa14b0650cdbddcd9280b"
 
 [[projects]]
-  digest = "1:87c2e02fb01c27060ccc5ba7c5a407cc91147726f8f40b70cceeedbc52b1f3a8"
+  digest = "1:946f412cb4d5b332ab8564b414496e80fa24d3e34b2702110311da89252f9f95"
   name = "github.com/sirupsen/logrus"
-  packages = ["."]
+  packages = [
+    ".",
+    "hooks/test",
+  ]
   pruneopts = "UT"
   revision = "e1e72e9de974bd926e5c56f83753fba2df402ce5"
   version = "v1.3.0"
@@ -870,7 +865,6 @@
   input-imports = [
     "github.com/firecracker-microvm/firecracker-go-sdk",
     "github.com/firecracker-microvm/firecracker-go-sdk/client/models",
-    "github.com/google/uuid",
     "github.com/hashicorp/go-hclog",
     "github.com/hashicorp/nomad/drivers/shared/executor",
     "github.com/hashicorp/nomad/plugins",
@@ -878,6 +872,8 @@
     "github.com/hashicorp/nomad/plugins/drivers",
     "github.com/hashicorp/nomad/plugins/shared/hclspec",
     "github.com/hashicorp/nomad/plugins/shared/structs",
+    "github.com/sirupsen/logrus",
+    "github.com/sirupsen/logrus/hooks/test",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
