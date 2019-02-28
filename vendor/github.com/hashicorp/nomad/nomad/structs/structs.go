@@ -560,6 +560,12 @@ type JobRevertRequest struct {
 	// version before reverting.
 	EnforcePriorVersion *uint64
 
+	// VaultToken is the Vault token that proves the submitter of the job revert
+	// has access to any Vault policies specified in the targeted job version. This
+	// field is only used to transfer the token and is not stored after the Job
+	// revert.
+	VaultToken string
+
 	WriteRequest
 }
 
@@ -708,6 +714,14 @@ type AllocSpecificRequest struct {
 // AllocsGetRequest is used to query a set of allocations
 type AllocsGetRequest struct {
 	AllocIDs []string
+	QueryOptions
+}
+
+// AllocRestartRequest is used to restart a specific allocations tasks.
+type AllocRestartRequest struct {
+	AllocID  string
+	TaskName string
+
 	QueryOptions
 }
 
@@ -7154,6 +7168,9 @@ type Allocation struct {
 	// NodeID is the node this is being placed on
 	NodeID string
 
+	// NodeName is the name of the node this is being placed on.
+	NodeName string
+
 	// Job is the parent job of the task group being allocated.
 	// This is copied at allocation time to avoid issues if the job
 	// definition is updated.
@@ -7610,55 +7627,61 @@ func (a *Allocation) LookupTask(name string) *Task {
 // Stub returns a list stub for the allocation
 func (a *Allocation) Stub() *AllocListStub {
 	return &AllocListStub{
-		ID:                 a.ID,
-		EvalID:             a.EvalID,
-		Name:               a.Name,
-		Namespace:          a.Namespace,
-		NodeID:             a.NodeID,
-		JobID:              a.JobID,
-		JobType:            a.Job.Type,
-		JobVersion:         a.Job.Version,
-		TaskGroup:          a.TaskGroup,
-		DesiredStatus:      a.DesiredStatus,
-		DesiredDescription: a.DesiredDescription,
-		ClientStatus:       a.ClientStatus,
-		ClientDescription:  a.ClientDescription,
-		DesiredTransition:  a.DesiredTransition,
-		TaskStates:         a.TaskStates,
-		DeploymentStatus:   a.DeploymentStatus,
-		FollowupEvalID:     a.FollowupEvalID,
-		RescheduleTracker:  a.RescheduleTracker,
-		CreateIndex:        a.CreateIndex,
-		ModifyIndex:        a.ModifyIndex,
-		CreateTime:         a.CreateTime,
-		ModifyTime:         a.ModifyTime,
+		ID:                    a.ID,
+		EvalID:                a.EvalID,
+		Name:                  a.Name,
+		Namespace:             a.Namespace,
+		NodeID:                a.NodeID,
+		NodeName:              a.NodeName,
+		JobID:                 a.JobID,
+		JobType:               a.Job.Type,
+		JobVersion:            a.Job.Version,
+		TaskGroup:             a.TaskGroup,
+		DesiredStatus:         a.DesiredStatus,
+		DesiredDescription:    a.DesiredDescription,
+		ClientStatus:          a.ClientStatus,
+		ClientDescription:     a.ClientDescription,
+		DesiredTransition:     a.DesiredTransition,
+		TaskStates:            a.TaskStates,
+		DeploymentStatus:      a.DeploymentStatus,
+		FollowupEvalID:        a.FollowupEvalID,
+		RescheduleTracker:     a.RescheduleTracker,
+		PreemptedAllocations:  a.PreemptedAllocations,
+		PreemptedByAllocation: a.PreemptedByAllocation,
+		CreateIndex:           a.CreateIndex,
+		ModifyIndex:           a.ModifyIndex,
+		CreateTime:            a.CreateTime,
+		ModifyTime:            a.ModifyTime,
 	}
 }
 
 // AllocListStub is used to return a subset of alloc information
 type AllocListStub struct {
-	ID                 string
-	EvalID             string
-	Name               string
-	Namespace          string
-	NodeID             string
-	JobID              string
-	JobType            string
-	JobVersion         uint64
-	TaskGroup          string
-	DesiredStatus      string
-	DesiredDescription string
-	ClientStatus       string
-	ClientDescription  string
-	DesiredTransition  DesiredTransition
-	TaskStates         map[string]*TaskState
-	DeploymentStatus   *AllocDeploymentStatus
-	FollowupEvalID     string
-	RescheduleTracker  *RescheduleTracker
-	CreateIndex        uint64
-	ModifyIndex        uint64
-	CreateTime         int64
-	ModifyTime         int64
+	ID                    string
+	EvalID                string
+	Name                  string
+	Namespace             string
+	NodeID                string
+	NodeName              string
+	JobID                 string
+	JobType               string
+	JobVersion            uint64
+	TaskGroup             string
+	DesiredStatus         string
+	DesiredDescription    string
+	ClientStatus          string
+	ClientDescription     string
+	DesiredTransition     DesiredTransition
+	TaskStates            map[string]*TaskState
+	DeploymentStatus      *AllocDeploymentStatus
+	FollowupEvalID        string
+	RescheduleTracker     *RescheduleTracker
+	PreemptedAllocations  []string
+	PreemptedByAllocation string
+	CreateIndex           uint64
+	ModifyIndex           uint64
+	CreateTime            int64
+	ModifyTime            int64
 }
 
 // SetEventDisplayMessage populates the display message if its not already set,

@@ -74,14 +74,6 @@
   revision = "0650fd9eeb50bab4fc99dceb9f2e14cf58f36e7f"
 
 [[projects]]
-  branch = "master"
-  digest = "1:9a3eb01f5c4ab249cd2fcb6f4babed7a5b11affcf6dfc7f2d6a188d55f6734c2"
-  name = "github.com/containerd/fifo"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "650d792183512bf92167787990b8f08a9175b3df"
-
-[[projects]]
   digest = "1:1b736b39b804e69b05f0acb12bbabf5b6f7b5760db959ce58d3f5e2919f7a2c2"
   name = "github.com/coreos/go-systemd"
   packages = [
@@ -388,7 +380,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:453f5c44c6449176839aa728bbd5bf5295ee5d81eac1396a1a250260cd295443"
+  digest = "1:fc4cf305baa1006384bf3f323837ed67efb05e2501381ed1adafa06a2d49a26b"
   name = "github.com/hashicorp/nomad"
   packages = [
     "acl",
@@ -420,7 +412,7 @@
     "plugins/shared/structs/proto",
   ]
   pruneopts = "UT"
-  revision = "eecae582c20d0fb206a25910c5bffe9004ad6de0"
+  revision = "8a0df4034dc4dee6a243f349e90f3dafe0941fc4"
 
 [[projects]]
   branch = "master"
@@ -547,7 +539,8 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:391796f0bbe76cd641dd01222eec8d1d90d76321597602e5a5f07d80be5c6976"
+  branch = "nomad-20190219"
+  digest = "1:e3c00d677de946d63e9f9dad3c855dd8f4323509493a6fe87a2c9fc143153b8f"
   name = "github.com/opencontainers/runc"
   packages = [
     "libcontainer",
@@ -562,6 +555,7 @@
     "libcontainer/intelrdt",
     "libcontainer/keys",
     "libcontainer/mount",
+    "libcontainer/nsenter",
     "libcontainer/seccomp",
     "libcontainer/stacktrace",
     "libcontainer/system",
@@ -639,12 +633,9 @@
   revision = "bb4de0191aa41b5507caa14b0650cdbddcd9280b"
 
 [[projects]]
-  digest = "1:946f412cb4d5b332ab8564b414496e80fa24d3e34b2702110311da89252f9f95"
+  digest = "1:87c2e02fb01c27060ccc5ba7c5a407cc91147726f8f40b70cceeedbc52b1f3a8"
   name = "github.com/sirupsen/logrus"
-  packages = [
-    ".",
-    "hooks/test",
-  ]
+  packages = ["."]
   pruneopts = "UT"
   revision = "e1e72e9de974bd926e5c56f83753fba2df402ce5"
   version = "v1.3.0"
@@ -873,7 +864,6 @@
     "github.com/hashicorp/nomad/plugins/shared/hclspec",
     "github.com/hashicorp/nomad/plugins/shared/structs",
     "github.com/sirupsen/logrus",
-    "github.com/sirupsen/logrus/hooks/test",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

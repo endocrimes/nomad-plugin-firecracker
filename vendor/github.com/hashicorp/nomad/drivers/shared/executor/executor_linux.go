@@ -19,7 +19,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/discover"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -87,7 +86,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 		logger.Error("unable to initialize stats", "error", err)
 	}
 	return &LibcontainerExecutor{
-		id:             strings.Replace(uuid.Generate(), "-", "_", 0),
+		id:             strings.Replace(uuid.Generate(), "-", "_", -1),
 		logger:         logger,
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
@@ -99,11 +98,6 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 // Launch creates a new container in libcontainer and starts a new process with it
 func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
 	l.logger.Debug("launching command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
-	// Find the nomad executable to launch the executor process with
-	bin, err := discover.NomadExecutable()
-	if err != nil {
-		return nil, fmt.Errorf("unable to find the nomad binary: %v", err)
-	}
 
 	if command.Resources == nil {
 		command.Resources = &drivers.Resources{
@@ -126,7 +120,10 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	factory, err := libcontainer.New(
 		path.Join(command.TaskDir, "../alloc/container"),
 		libcontainer.Cgroupfs,
-		libcontainer.InitArgs(bin, "libcontainer-shim"),
+		// note that os.Args[0] refers to the executor shim typically
+		// and first args arguments is ignored now due
+		// until https://github.com/opencontainers/runc/pull/1888 is merged
+		libcontainer.InitArgs(os.Args[0], "libcontainer-shim"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create factory: %v", err)
@@ -161,7 +158,13 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine relative path base=%q target=%q: %v", command.TaskDir, path, err)
 	}
-	path = rel
+
+	// Turn relative-to-chroot path into absolute path to avoid
+	// libcontainer trying to resolve the binary using $PATH.
+	// Do *not* use filepath.Join as it will translate ".."s returned by
+	// filepath.Rel. Prepending "/" will cause the path to be rooted in the
+	// chroot which is the desired behavior.
+	path = "/" + rel
 
 	combined := append([]string{path}, command.Args...)
 	stdout, err := command.Stdout()
@@ -339,10 +342,21 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 		case <-time.After(grace):
 			// Force kill all container processes after grace period,
 			// hence `true` argument.
-			return l.container.Signal(os.Kill, true)
+			if err := l.container.Signal(os.Kill, true); err != nil {
+				return err
+			}
 		}
 	} else {
-		return l.container.Signal(os.Kill, true)
+		if err := l.container.Signal(os.Kill, true); err != nil {
+			return err
+		}
+	}
+
+	select {
+	case <-l.userProcExited:
+		return nil
+	case <-time.After(time.Second * 15):
+		return fmt.Errorf("process failed to exit after 15 seconds")
 	}
 }
 
