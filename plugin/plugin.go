@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"time"
 
 	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
-	"github.com/google/uuid"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -94,6 +96,9 @@ type Driver struct {
 
 	// tasks is the in memory datastore mapping taskIDs to driverHandles
 	tasks *taskStore
+
+	// nomadConfig is the client config from nomad
+	nomadConfig *base.ClientDriverConfig
 }
 
 var _ drivers.DriverPlugin = &Driver{}
@@ -122,7 +127,9 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		}
 	}
 
-	d.logger.Warn("Set Config", "config", fmt.Sprintf("%#v", config), "raw", cfg.PluginConfig)
+	if cfg.AgentConfig != nil {
+		d.nomadConfig = cfg.AgentConfig.Driver
+	}
 
 	d.config = &config
 
@@ -226,54 +233,6 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func newMachine(ctx context.Context, binPath, socketPath, kernelImage, kernelArgs, fsPath string, cpuCount int64, memSize int64) (*firecracker.Machine, error) {
-	rootDrive := models.Drive{
-		DriveID:      firecracker.String("1"),
-		PathOnHost:   firecracker.String(fsPath),
-		IsRootDevice: firecracker.Bool(true),
-		IsReadOnly:   firecracker.Bool(true),
-	}
-
-	ephemeralDrive := models.Drive{
-		DriveID:      firecracker.String("2"),
-		PathOnHost:   firecracker.String("/tmp/fstest"),
-		IsRootDevice: firecracker.Bool(false),
-		IsReadOnly:   firecracker.Bool(false),
-	}
-
-	fcCfg := firecracker.Config{
-		SocketPath:      socketPath,
-		KernelImagePath: kernelImage,
-		KernelArgs:      kernelArgs,
-		Drives:          []models.Drive{rootDrive, ephemeralDrive},
-		MachineCfg: models.MachineConfiguration{
-			VcpuCount:   cpuCount,
-			CPUTemplate: models.CPUTemplate("C3"),
-			HtEnabled:   false,
-			MemSizeMib:  memSize,
-		},
-	}
-
-	machineOpts := []firecracker.Opt{}
-
-	// TODO: Support jailer
-	cmd := firecracker.VMCommandBuilder{}.
-		WithBin(binPath).
-		WithSocketPath(socketPath).
-		WithStdin(os.Stdin).
-		WithStdout(os.Stdout).
-		WithStderr(os.Stderr).
-		Build(ctx)
-	machineOpts = append(machineOpts, firecracker.WithProcessRunner(cmd))
-
-	m, err := firecracker.NewMachine(ctx, fcCfg, machineOpts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return m, nil
-}
-
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
@@ -291,24 +250,92 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		config.KernelBootArgs = defaultBootArgs
 	}
 
-	controlUUID, err := uuid.NewRandom()
+	cpuCount := int64(math.Max(1, float64(cfg.Resources.NomadResources.Cpu.CpuShares)/1024.0))
+	memSize := cfg.Resources.NomadResources.Memory.MemoryMB
+
+	controlSocketPath := filepath.Join(cfg.TaskDir().Dir, fmt.Sprintf("%s-control.sock", cfg.Name))
+
+	// TODO: Support jailer
+	cmd := firecracker.VMCommandBuilder{}.
+		WithBin(d.config.FirecrackerPath).
+		WithSocketPath(controlSocketPath).
+		WithStdin(nil).
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr).
+		Build(ctx)
+
+	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, fmt.Sprintf("%s-executor.out", cfg.Name))
+	executorConfig := &executor.ExecutorConfig{
+		LogFile:  pluginLogFile,
+		LogLevel: "debug",
+	}
+
+	execImpl, pluginClient, err := executor.CreateExecutor(
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
+		d.nomadConfig, executorConfig)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	cpuCount := int64(math.Max(1, float64(cfg.Resources.NomadResources.Cpu.CpuShares)/1024.0))
-	memSize := cfg.Resources.NomadResources.Memory.MemoryMB
+	execCmd := &executor.ExecCommand{
+		Cmd:        cmd.Path,
+		Args:       cmd.Args,
+		Env:        append(cfg.EnvList(), cmd.Env...),
+		User:       cfg.User,
+		TaskDir:    cfg.TaskDir().Dir,
+		StdoutPath: cfg.StdoutPath,
+		StderrPath: cfg.StderrPath,
+	}
 
-	controlSocketPath := fmt.Sprintf("/tmp/%s.socket", controlUUID)
-	m, err := newMachine(ctx, d.config.FirecrackerPath, controlSocketPath, config.KernelPath, config.KernelBootArgs, config.ImagePath, cpuCount, memSize)
+	ps, err := execImpl.Launch(execCmd)
 	if err != nil {
+		pluginClient.Kill()
+		return nil, nil, err
+	}
+
+	rootDrive := models.Drive{
+		DriveID:      firecracker.String("1"),
+		PathOnHost:   firecracker.String(config.ImagePath),
+		IsRootDevice: firecracker.Bool(true),
+		IsReadOnly:   firecracker.Bool(false),
+	}
+
+	bsrc := models.BootSource{
+		KernelImagePath: &config.KernelPath,
+		BootArgs:        config.KernelBootArgs,
+	}
+
+	machineCfg := models.MachineConfiguration{
+		VcpuCount: cpuCount,
+		// TODO: Figure this out
+		CPUTemplate: models.CPUTemplate("C3"),
+		// TODO:Make this configurable
+		HtEnabled:  false,
+		MemSizeMib: memSize,
+	}
+
+	client := firecracker.NewClient(controlSocketPath, logrus.WithField("alloc_id", handle.Config.AllocID), false)
+
+	if resp, err := client.PutGuestBootSource(ctx, &bsrc); err != nil {
+		d.logger.Error("Failed to configure boot source", "resp_error", resp.Error(), "err", err)
+		return nil, nil, err
+	}
+
+	if resp, err := client.PutMachineConfiguration(ctx, &machineCfg); err != nil {
+		d.logger.Error("Failed to configure machine", "resp_error", resp.Error(), "err", err)
+		return nil, nil, err
+	}
+
+	if resp, err := client.PutGuestDriveByID(ctx, *rootDrive.DriveID, &rootDrive); err != nil {
+		d.logger.Error("Failed to configure root drive", "resp_error", resp.Error(), "err", err)
 		return nil, nil, err
 	}
 
 	h := &taskHandle{
 		taskConfig: cfg,
-		machine:    m,
+		pid:        ps.Pid,
 		procState:  drivers.TaskStateRunning,
+		exec:       execImpl,
 		startedAt:  time.Now().Round(time.Millisecond),
 		logger:     d.logger,
 		waitCh:     make(chan struct{}),
@@ -342,7 +369,7 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 		return fmt.Errorf("task with ID %q not found", taskID)
 	}
 
-	return h.machine.StopVMM()
+	return h.exec.Shutdown("SIGKILL", 5*time.Second)
 }
 
 func (d *Driver) DestroyTask(taskID string, force bool) error {
