@@ -200,6 +200,28 @@ func (d *Driver) fingerprintBinary(path string) *drivers.Fingerprint {
 	return nil
 }
 
+func waitForFileToExist(path string, maxDuration time.Duration) error {
+	deadline := time.Now().Add(maxDuration)
+	for {
+		_, err := os.Stat(path)
+		if err == nil {
+			break
+		}
+
+		if time.Now().After(deadline) {
+			return fmt.Errorf("Timed out waiting for firecracker to be available")
+		}
+
+		if os.IsNotExist(err) {
+			continue
+		}
+
+		return fmt.Errorf("Unexpected error waiting for file: %v", err)
+	}
+
+	return nil
+}
+
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	if d.config == nil {
 		return &drivers.Fingerprint{
@@ -315,13 +337,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		MemSizeMib: memSize,
 	}
 
-	// TODO: FIXME: Timeout after some reasonable amount of time and log non 404s.
-	for {
-		if _, err := os.Stat(controlSocketPath); os.IsNotExist(err) {
-			continue
-		}
-
-		break
+	if err := waitForFileToExist(controlSocketPath, 2*time.Second); err != nil {
+		d.logger.Error("Firecracker socket timed out", "error", err)
+		return nil, nil, err
 	}
 
 	client := firecracker.NewClient(controlSocketPath, logrus.WithField("alloc_id", cfg.AllocID), false)

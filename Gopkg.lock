@@ -34,12 +34,36 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
+  branch = "master"
+  digest = "1:bb6c15391e666c4f44bdc604772301b93102233ed687be6df6d1c2abbde4f15c"
+  name = "github.com/RackSec/srslog"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a4725f04ec91af1a91b380da679d6e0c2f061e59"
+
+[[projects]]
   digest = "1:e92f5581902c345eb4ceffdcd4a854fb8f73cf436d47d837d1ec98ef1fe0a214"
   name = "github.com/StackExchange/wmi"
   packages = ["."]
   pruneopts = "UT"
   revision = "5d049714c4a64225c3c79a7cf7d02f7fb5b96338"
   version = "1.0.0"
+
+[[projects]]
+  digest = "1:90afd0cfdffcc3df7855160ee2954cbca286e23c4eb9cb3d075536c9e4e1b04f"
+  name = "github.com/agext/levenshtein"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "0ded9c86537917af2ff89bc9c78de6bd58477894"
+  version = "v1.2.2"
+
+[[projects]]
+  digest = "1:2bf7da77216264bb61bd8cb5f3380a03ab509e8a826fe359008d4a6ba0789b13"
+  name = "github.com/apparentlymart/go-textseg"
+  packages = ["textseg"]
+  pruneopts = "UT"
+  revision = "fb01f485ebef760e5ee06d55e1b07534dda2d295"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -64,6 +88,14 @@
   pruneopts = "UT"
   revision = "ccb8e960c48f04d6935e72476ae4a51028f9e22f"
   version = "v9"
+
+[[projects]]
+  digest = "1:0f98f59e9a2f4070d66f0c9c39561f68fcd1dc837b22a852d28d0003aebd1b1e"
+  name = "github.com/boltdb/bolt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8"
+  version = "v1.3.1"
 
 [[projects]]
   branch = "master"
@@ -99,6 +131,14 @@
   pruneopts = "UT"
   revision = "a261ee33d7a517f054effbf451841abaafe3e0fd"
   version = "v0.2.2"
+
+[[projects]]
+  digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  pruneopts = "UT"
+  revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
+  version = "v1.1.1"
 
 [[projects]]
   digest = "1:6f82cacd0af5921e99bf3f46748705239b36489464f4529a1589bc895764fb18"
@@ -259,6 +299,27 @@
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:e4f5819333ac698d294fe04dbf640f84719658d5c7ce195b10060cc37292ce79"
+  name = "github.com/golang/snappy"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2a8bb927dd31d8daada140a5d09578521ce5c36a"
+  version = "v0.0.1"
+
+[[projects]]
+  digest = "1:2e3c336fc7fde5c984d2841455a658a6d626450b1754a854b3b32e7a8f49a07a"
+  name = "github.com/google/go-cmp"
+  packages = [
+    "cmp",
+    "cmp/internal/diff",
+    "cmp/internal/function",
+    "cmp/internal/value",
+  ]
+  pruneopts = "UT"
+  revision = "3af367b6b30c263d47e8895973edcca9a49cf029"
+  version = "v0.2.0"
+
+[[projects]]
   digest = "1:e3f17aa0eb8c151426d23cb767ae50f5b42c46533db3424761ee639b56ab9041"
   name = "github.com/gorhill/cronexpr"
   packages = ["."]
@@ -337,11 +398,27 @@
   revision = "f444068e8f5a19853177f7aa0aea7e7d95b5b528"
 
 [[projects]]
+  digest = "1:1ba2690391610cce08f12c42dd7e8b5f9114a697e85d695280c67b8487cfc38e"
+  name = "github.com/hashicorp/go-retryablehttp"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "357460732517ec3b57c05c51443296bdd6df1874"
+  version = "v0.5.3"
+
+[[projects]]
   digest = "1:45aad874d3c7d5e8610427c81870fb54970b981692930ec2a319ce4cb89d7a00"
   name = "github.com/hashicorp/go-rootcerts"
   packages = ["."]
   pruneopts = "UT"
   revision = "6bb64b370b90e7ef1fa532be9e591a81c3493e00"
+
+[[projects]]
+  digest = "1:8abc57884881876d02f467bb7d4ed7ce3a58dac3f8f7ba60579ce4ffc6afd7e1"
+  name = "github.com/hashicorp/go-sockaddr"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c7188e74f6acae5a989bdc959aa779f8b9f42faf"
+  version = "v1.0.2"
 
 [[projects]]
   digest = "1:77395dd3847dac9c45118c668f5dab85aedf0163dc3b38aea6578c5cf0d502f9"
@@ -380,25 +457,54 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:fc4cf305baa1006384bf3f323837ed67efb05e2501381ed1adafa06a2d49a26b"
+  digest = "1:7d4cf79bfc4b7da78a4748e9f2ec95ad254985ca7839e6c500fdfd2990e41633"
+  name = "github.com/hashicorp/hcl2"
+  packages = [
+    "hcl",
+    "hcl/hclsyntax",
+    "hcl/json",
+    "hcldec",
+  ]
+  pruneopts = "UT"
+  revision = "c27cd9b2e8db7b8c664f1933e54eb63285925b65"
+
+[[projects]]
+  branch = "master"
+  digest = "1:93c0789d246d13e9c9fcf0ab4c636f5c0f2af0491f0fc6e881ce30e15ea78857"
   name = "github.com/hashicorp/nomad"
   packages = [
     "acl",
     "client/allocdir",
+    "client/allocrunner/taskrunner/state",
+    "client/config",
+    "client/devicemanager/state",
     "client/lib/fifo",
+    "client/logmon",
+    "client/logmon/logging",
+    "client/logmon/proto",
+    "client/pluginmanager/drivermanager/state",
+    "client/state",
     "client/stats",
     "client/structs",
+    "client/taskenv",
     "drivers/shared/executor",
     "drivers/shared/executor/proto",
     "helper",
     "helper/args",
+    "helper/boltdd",
     "helper/discover",
     "helper/flatmap",
     "helper/pluginutils/grpcutils",
+    "helper/pluginutils/hclspecutils",
+    "helper/pluginutils/hclutils",
+    "helper/pluginutils/loader",
     "helper/stats",
+    "helper/testlog",
     "helper/uuid",
     "lib/kheap",
+    "nomad/mock",
     "nomad/structs",
+    "nomad/structs/config",
     "plugins",
     "plugins/base",
     "plugins/base/proto",
@@ -407,9 +513,11 @@
     "plugins/device/proto",
     "plugins/drivers",
     "plugins/drivers/proto",
+    "plugins/drivers/testutils",
     "plugins/shared/hclspec",
     "plugins/shared/structs",
     "plugins/shared/structs/proto",
+    "version",
   ]
   pruneopts = "UT"
   revision = "8a0df4034dc4dee6a243f349e90f3dafe0941fc4"
@@ -428,6 +536,22 @@
   packages = ["coordinate"]
   pruneopts = "UT"
   revision = "b6017ae61f4420ed0c02d5eeeb9ff3fc02953f14"
+
+[[projects]]
+  digest = "1:010eddbe5d1da9cbe074d721ff874862cf5d8be2069107e41915d50a0d2936ef"
+  name = "github.com/hashicorp/vault"
+  packages = [
+    "api",
+    "helper/compressutil",
+    "helper/consts",
+    "helper/hclutil",
+    "helper/jsonutil",
+    "helper/parseutil",
+    "helper/strutil",
+  ]
+  pruneopts = "UT"
+  revision = "0082501623c0b704b87b1fbc84c2d725994bac54"
+  version = "v1.1.2"
 
 [[projects]]
   branch = "master"
@@ -497,6 +621,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "6d0b8010fcc857872e42fc6c931227569016843c"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:abf08734a6527df70ed361d7c369fb580e6840d8f7a6012e5f609fdfd93b4e48"
+  name = "github.com/mitchellh/go-wordwrap"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9e67c67572bc5dd02aef930e2b0ae3c02a4b5a5c"
   version = "v1.0.0"
 
 [[projects]]
@@ -586,12 +718,31 @@
   version = "v1.1"
 
 [[projects]]
+  digest = "1:cf9272ab0a637cb1ffa40e2b6220108d7016a36b3eb357e4b57aacb7a8f725c0"
+  name = "github.com/pierrec/lz4"
+  packages = [
+    ".",
+    "internal/xxh32",
+  ]
+  pruneopts = "UT"
+  revision = "9419d2361c8ae111073ffe3337ecc364fb590921"
+  version = "v2.1.2"
+
+[[projects]]
   digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
   name = "github.com/pkg/errors"
   packages = ["."]
   pruneopts = "UT"
   revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
   version = "v0.8.1"
+
+[[projects]]
+  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  pruneopts = "UT"
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:5b92d232e81c3e8eec282c92dcaa2e0e1ad3c23157be19a01b3e33f7e6e8d137"
@@ -641,6 +792,17 @@
   version = "v1.3.0"
 
 [[projects]]
+  digest = "1:5da8ce674952566deae4dbc23d07c85caafc6cfa815b0b3e03e41979cedb8750"
+  name = "github.com/stretchr/testify"
+  packages = [
+    "assert",
+    "require",
+  ]
+  pruneopts = "UT"
+  revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
+  version = "v1.3.0"
+
+[[projects]]
   branch = "master"
   digest = "1:e14e467ed00ab98665623c5060fa17e3d7079be560ffc33cabafd05d35894f05"
   name = "github.com/syndtr/gocapability"
@@ -686,11 +848,15 @@
   version = "v4.0.2"
 
 [[projects]]
-  digest = "1:15ece68b5c7a8adfd956284fd61571a8bc70858e448fff4b45924425b3bc53d4"
+  digest = "1:ccc78feeee0ecd1385dd05688e3c504ebd87b7c4857cf2c0e162f5923447d8b4"
   name = "github.com/zclconf/go-cty"
   packages = [
     "cty",
     "cty/convert",
+    "cty/function",
+    "cty/function/stdlib",
+    "cty/gocty",
+    "cty/json",
     "cty/msgpack",
     "cty/set",
   ]
@@ -757,6 +923,14 @@
   pruneopts = "UT"
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:9fdc2b55e8e0fafe4b41884091e51e77344f7dc511c5acedcfd98200003bff90"
+  name = "golang.org/x/time"
+  packages = ["rate"]
+  pruneopts = "UT"
+  revision = "9d24e82272b4f38b78bc8cff74fa936d31ccd8ef"
 
 [[projects]]
   digest = "1:56dfffc6e6ceeaebb6db73e02a846a92a850c53130078682993bd028a2ef717d"
@@ -850,6 +1024,20 @@
   revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
   version = "v2.2.2"
 
+[[projects]]
+  digest = "1:a5cc901b8e54c4b73a62f97dc7c8f6c46e347c148a7a38e09b2e942c2587ba03"
+  name = "gotest.tools"
+  packages = [
+    "assert",
+    "assert/cmp",
+    "internal/difflib",
+    "internal/format",
+    "internal/source",
+  ]
+  pruneopts = "UT"
+  revision = "1083505acf35a0bd8a696b26837e1fb3187a7a83"
+  version = "v2.3.0"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -861,9 +1049,11 @@
     "github.com/hashicorp/nomad/plugins",
     "github.com/hashicorp/nomad/plugins/base",
     "github.com/hashicorp/nomad/plugins/drivers",
+    "github.com/hashicorp/nomad/plugins/drivers/testutils",
     "github.com/hashicorp/nomad/plugins/shared/hclspec",
     "github.com/hashicorp/nomad/plugins/shared/structs",
     "github.com/sirupsen/logrus",
+    "gotest.tools/assert",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
