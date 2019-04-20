@@ -59,7 +59,7 @@ func NomadExecutable() (string, error) {
 }
 
 func isNomad(path, nomadExe string) bool {
-	if strings.HasSuffix(path, ".test") || strings.HasSuffix(path, ".test.exe") {
+	if strings.HasSuffix(path, ".test") || strings.HasSuffix(path, ".test.exe") || strings.Contains(path, "plugin") || strings.Contains(path, "driver") {
 		return false
 	}
 	return true

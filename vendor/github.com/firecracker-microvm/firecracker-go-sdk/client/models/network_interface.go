@@ -37,7 +37,8 @@ type NetworkInterface struct {
 	GuestMac string `json:"guest_mac,omitempty"`
 
 	// Host level path for the guest network interface
-	HostDevName string `json:"host_dev_name,omitempty"`
+	// Required: true
+	HostDevName *string `json:"host_dev_name"`
 
 	// iface id
 	// Required: true
@@ -54,6 +55,10 @@ type NetworkInterface struct {
 func (m *NetworkInterface) Validate(formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.validateHostDevName(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateIfaceID(formats); err != nil {
 		res = append(res, err)
 	}
@@ -69,6 +74,15 @@ func (m *NetworkInterface) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *NetworkInterface) validateHostDevName(formats strfmt.Registry) error {
+
+	if err := validate.Required("host_dev_name", "body", m.HostDevName); err != nil {
+		return err
+	}
+
 	return nil
 }
 

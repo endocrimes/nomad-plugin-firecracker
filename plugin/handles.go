@@ -6,15 +6,17 @@ import (
 	"time"
 
 	firecracker "github.com/firecracker-microvm/firecracker-go-sdk"
+	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type taskHandle struct {
-	machine *firecracker.Machine
-	logger  hclog.Logger
-	exec    executor.Executor
+	client *firecracker.Client
+	logger hclog.Logger
+	exec   executor.Executor
+	pid    int
 
 	// stateLock syncs access to all fields below
 	stateLock sync.RWMutex
@@ -58,19 +60,21 @@ func (h *taskHandle) run() {
 	defer close(h.waitCh)
 
 	ctx := context.Background()
-	err := h.machine.Start(ctx)
-	if err != nil {
+	info := models.InstanceActionInfo{
+		ActionType: models.InstanceActionInfoActionTypeInstanceStart,
+	}
+	if resp, err := h.client.CreateSyncAction(ctx, &info); err != nil {
 		h.stateLock.Lock()
 		defer h.stateLock.Unlock()
 
-		h.logger.Error("Failed to start machine", "error", err)
+		h.logger.Error("Failed to start machine", "error", err, "resp_err", resp.Error())
 		h.procState = drivers.TaskStateExited
 		h.completedAt = time.Now()
 
 		return
 	}
 
-	err = h.machine.Wait(ctx)
+	_, err := h.exec.Wait(ctx)
 
 	h.logger.Warn("Firecracker exited", "error", err)
 

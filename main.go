@@ -10,7 +10,12 @@ func main() {
 	plugins.Serve(factory)
 }
 
-// factory returns a new instance of the IIS Driver plugin
 func factory(log hclog.Logger) interface{} {
+	if log == nil {
+		log = hclog.New(&hclog.LoggerOptions{
+			Level:      hclog.Trace,
+			JSONFormat: true,
+		})
+	}
 	return plugin.NewDriver(log)
 }
